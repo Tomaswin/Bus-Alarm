@@ -1,12 +1,13 @@
 package com.example.busalarm
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.location.Location
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.support.v4.app.ActivityCompat
+import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import com.google.android.gms.common.api.Status
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.GoogleMap
@@ -14,38 +15,68 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.widget.AutocompleteSupportFragment
+import com.google.android.libraries.places.widget.listener.PlaceSelectionListener
+import java.util.*
+
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
     private lateinit var lastLocation: Location
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private var mFirstMapFragment = FirstMapFragment()
-
+    private lateinit var map: GoogleMap
+    private lateinit var placeAutocompleteFragment: AutocompleteSupportFragment
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        mFirstMapFragment.newInstance()
-        supportFragmentManager
-            .beginTransaction()
-            .add(R.id.map, mFirstMapFragment)
-            .commit()
+        /*
+        val mapFragment = supportFragmentManager
+            .findFragmentById(R.id.map) as SupportMapFragment?
+        mapFragment!!.getMapAsync(this)
+        */
+        if (!Places.isInitialized()) {
+            Places.initialize(applicationContext, "AIzaSyAMVvfUHahieTCR9QB6aUpfiODXQeaQE-4")
+        }
 
-        mFirstMapFragment.getMapAsync(this)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        placeAutocompleteFragment = supportFragmentManager.findFragmentById(R.id.place_autocomplete_fragment) as AutocompleteSupportFragment
+        placeAutocompleteFragment.setPlaceFields(Arrays.asList(Place.Field.ID, Place.Field.NAME))
 
+
+        placeAutocompleteFragment.setOnPlaceSelectedListener(object : PlaceSelectionListener {
+            override fun onPlaceSelected(place: Place) {
+                // TODO: Get info about the selected place.
+                Log.i("", "Place: " + place.name + ", " + place.id)
+            }
+
+            override fun onError(status: Status) {
+                // TODO: Handle the error.
+                Log.i("", "An error occurred: $status")
+            }
+        })
     }
 
     @SuppressLint("MissingPermission")
-    override fun onMapReady(googleMap: GoogleMap?) {
-        var map = googleMap
+    override fun onMapReady(googleMap: GoogleMap) {
+        map = googleMap
 
-        map?.uiSettings?.isZoomControlsEnabled = true
-        map?.setOnMarkerClickListener(this)
+        map.uiSettings?.isZoomControlsEnabled = true
+        map.setOnMarkerClickListener(this)
 
         setUpMap()
 
-        map?.isMyLocationEnabled = true
+
+        if (map != null) {
+            map.setOnMarkerClickListener { marker ->
+                false
+            }
+        }
+
+        map.isMyLocationEnabled = true
 
         fusedLocationClient.lastLocation.addOnSuccessListener(this) { location ->
             // Got last known location. In some rare situations this can be null.
